@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Supply Chain Risk Monitor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <h1>Supply Chain Risk Monitor</h1>
+        <p>Realtime market + disruption intelligence with model-driven disruption forecasting.</p>
+      </header>
+
+      <section class="realtime-status" id="realtimeStatus"></section>
+
+      <section class="predictor-panel" id="predictorPanel"></section>
+
+      <section class="summary-grid" id="summary"></section>
+
+      <section class="cards-grid" id="markets"></section>
+
+      <section class="news-panel">
+        <div class="panel-header">
+          <h2>Disruption News Feed</h2>
+          <span class="badge" id="updatedBadge">UPDATING</span>
+        </div>
+        <div id="newsList" class="news-list"></div>
+      </section>
+    </main>
+
+    <template id="marketCardTemplate">
+      <article class="card">
+        <div class="card-header">
+          <h3></h3>
+          <span class="status live">LIVE</span>
+        </div>
+        <div class="rows"></div>
+      </article>
+    </template>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
