@@ -76,6 +76,30 @@ const FALLBACK_NEWS = [
   }
 ];
 
+
+const SANCTIONED_COUNTRIES = new Set([
+  'IRAN', 'NORTH KOREA', 'SYRIA', 'CUBA', 'RUSSIA', 'BELARUS'
+]);
+
+const COUNTRY_REGION_MAP = {
+  'UNITED STATES': 'americas',
+  CANADA: 'americas',
+  MEXICO: 'americas',
+  BRAZIL: 'americas',
+  'UNITED KINGDOM': 'europe',
+  GERMANY: 'europe',
+  FRANCE: 'europe',
+  POLAND: 'europe',
+  INDIA: 'apac',
+  JAPAN: 'apac',
+  'SOUTH KOREA': 'apac',
+  SINGAPORE: 'apac',
+  AUSTRALIA: 'apac',
+  'UNITED ARAB EMIRATES': 'mea',
+  'SAUDI ARABIA': 'mea',
+  'SOUTH AFRICA': 'mea'
+};
+
 const contentType = (filePath) => {
   const ext = path.extname(filePath).toLowerCase();
   return {
@@ -99,6 +123,34 @@ function clamp(value, min, max) {
 
 function sigmoid(z) {
   return 1 / (1 + Math.exp(-z));
+}
+
+
+function normalizeCountry(country) {
+  if (!country) return 'ALL';
+  return country.toString().trim().toUpperCase();
+}
+
+function resolveTargeting(region, country) {
+  const normalizedCountry = normalizeCountry(country);
+  const normalizedRegion = (region || '').toString().trim().toLowerCase() || 'global';
+
+  if (normalizedCountry !== 'ALL' && SANCTIONED_COUNTRIES.has(normalizedCountry)) {
+    return {
+      allowed: false,
+      reason: `Requested country '${country}' is currently restricted due to U.S. sanctions policy.`
+    };
+  }
+
+  const inferredRegion = normalizedCountry !== 'ALL' ? (COUNTRY_REGION_MAP[normalizedCountry] || 'global') : normalizedRegion;
+
+  return {
+    allowed: true,
+    country: normalizedCountry,
+    region: inferredRegion,
+    displayCountry: normalizedCountry === 'ALL' ? 'All non-sanctioned countries' : normalizedCountry,
+    displayRegion: inferredRegion
+  };
 }
 
 async function fetchQuote(symbol, name, fallbackBase) {
@@ -140,6 +192,10 @@ async function fetchQuote(symbol, name, fallbackBase) {
   }
 }
 
+async function fetchGdeltNews(targetCountry = 'ALL') {
+  try {
+    const countryToken = targetCountry !== 'ALL' ? ` AND "${targetCountry}"` : '';
+    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=(supply+chain+OR+logistics+OR+shipping${countryToken})&mode=artlist&format=json&maxrecords=7&sort=datedesc`;
 async function fetchGdeltNews() {
   try {
     const url = 'https://api.gdeltproject.org/api/v2/doc/doc?query=(supply+chain+OR+logistics+OR+shipping)&mode=artlist&format=json&maxrecords=7&sort=datedesc';
@@ -330,12 +386,14 @@ function buildDisruptionPredictor({ us, metals, vix, news, relief, kev, marketSo
   };
 }
 
+async function buildDashboardData(targeting = { region: 'global', country: 'ALL' }) {
 async function buildDashboardData() {
   const [metals, us, apac, eu, news, relief, kev, vix] = await Promise.all([
     Promise.all(TICKERS.metals.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
     Promise.all(TICKERS.us.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
     Promise.all(TICKERS.apac.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
     Promise.all(TICKERS.eu.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
+    fetchGdeltNews(targeting.country),
     fetchGdeltNews(),
     fetchReliefWebDisasters(),
     fetchKevStats(),
@@ -351,6 +409,9 @@ async function buildDashboardData() {
 
   const metrics = computeDashboardMetrics({ metals, us, news, relief, kev });
   const predictor = buildDisruptionPredictor({ us, metals, vix, news, relief, kev, marketSourceSummary, newsSourceSummary });
+
+  const regionAdjustment = { americas: 0, europe: 2, apac: 3, mea: 4, global: 1 }[targeting.region] || 1;
+  predictor.disruptionIndicator.finalAggregatedScore = clamp(predictor.disruptionIndicator.finalAggregatedScore + regionAdjustment, 0, 100);
 
   return {
     updatedAt: new Date().toISOString(),
@@ -369,6 +430,7 @@ async function buildDashboardData() {
       climateEvents: relief.dataSourceStatus,
       cyberFeed: kev.dataSourceStatus
     },
+    targeting,
     predictor,
     vix,
     metals,
@@ -412,6 +474,12 @@ const server = http.createServer(async (req, res) => {
 
   if (parsedUrl.pathname === '/api/dashboard') {
     try {
+      const targeting = resolveTargeting(parsedUrl.searchParams.get('region'), parsedUrl.searchParams.get('country'));
+      if (!targeting.allowed) {
+        sendJson(res, 400, { message: 'Country not allowed', detail: targeting.reason });
+        return;
+      }
+      const data = await buildDashboardData(targeting);
       const data = await buildDashboardData();
       sendJson(res, 200, data);
     } catch (error) {

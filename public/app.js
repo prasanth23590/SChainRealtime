@@ -26,6 +26,11 @@ function sourcePillClass(sourceStatus) {
   return 'source-pill simulated';
 }
 
+function renderTargeting(data) {
+  if (!data.targeting) return;
+  targetingNoteEl.textContent = `Targeting: ${data.targeting.displayCountry} • Region: ${data.targeting.displayRegion.toUpperCase()} • U.S.-sanctioned countries excluded`;
+}
+
 function renderRealtimeStatus(data) {
   const pricesRealtime = data.realtimeAnswer.pricesAllRealtime;
   const newsRealtime = data.realtimeAnswer.disruptionNewsAllRealtime;
@@ -221,6 +226,14 @@ function renderNews(news) {
 async function loadDashboard() {
   try {
     updatedBadgeEl.textContent = 'Updating…';
+    const query = new URLSearchParams({
+      region: regionSelectEl.value || 'global',
+      country: countrySelectEl.value || 'ALL'
+    });
+    const response = await fetch(`/api/dashboard?${query.toString()}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || data.message || 'failed');
+    renderTargeting(data);
     const response = await fetch('/api/dashboard');
     if (!response.ok) throw new Error('failed');
 
@@ -239,6 +252,9 @@ async function loadDashboard() {
 
     renderNews(data.news);
     updatedBadgeEl.textContent = `Updated ${new Date(data.updatedAt).toLocaleTimeString()} • ${data.sourceMode.toUpperCase()}`;
+  } catch (error) {
+    updatedBadgeEl.textContent = 'Data error';
+    targetingNoteEl.textContent = error.message || 'Unable to load targeting context.';
   } catch {
     updatedBadgeEl.textContent = 'Data error';
     realtimeStatusEl.innerHTML = '<p class="error-text">Unable to load source coverage.</p>';
@@ -246,6 +262,8 @@ async function loadDashboard() {
     newsListEl.innerHTML = '<p class="error-text">Unable to load live data sources right now.</p>';
   }
 }
+
+applyTargetingEl.addEventListener('click', loadDashboard);
 
 loadDashboard();
 setInterval(loadDashboard, REFRESH_INTERVAL_MS);

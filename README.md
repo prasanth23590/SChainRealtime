@@ -165,5 +165,6 @@ node -v
 - Realtime disruption predictor
 - Final aggregated disruption indicator with score legend and urgency colors
 - News and market panels
+- Region/country targeting controls (all U.S.-sanctioned countries are blocked by policy checks)
 
 The dashboard refreshes automatically every 30 minutes.
