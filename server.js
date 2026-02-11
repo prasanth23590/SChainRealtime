@@ -196,6 +196,9 @@ async function fetchGdeltNews(targetCountry = 'ALL') {
   try {
     const countryToken = targetCountry !== 'ALL' ? ` AND "${targetCountry}"` : '';
     const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=(supply+chain+OR+logistics+OR+shipping${countryToken})&mode=artlist&format=json&maxrecords=7&sort=datedesc`;
+async function fetchGdeltNews() {
+  try {
+    const url = 'https://api.gdeltproject.org/api/v2/doc/doc?query=(supply+chain+OR+logistics+OR+shipping)&mode=artlist&format=json&maxrecords=7&sort=datedesc';
     const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!response.ok) throw new Error('Failed to fetch GDELT news');
 
@@ -384,12 +387,14 @@ function buildDisruptionPredictor({ us, metals, vix, news, relief, kev, marketSo
 }
 
 async function buildDashboardData(targeting = { region: 'global', country: 'ALL' }) {
+async function buildDashboardData() {
   const [metals, us, apac, eu, news, relief, kev, vix] = await Promise.all([
     Promise.all(TICKERS.metals.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
     Promise.all(TICKERS.us.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
     Promise.all(TICKERS.apac.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
     Promise.all(TICKERS.eu.map((item) => fetchQuote(item.symbol, item.name, item.fallback))),
     fetchGdeltNews(targeting.country),
+    fetchGdeltNews(),
     fetchReliefWebDisasters(),
     fetchKevStats(),
     fetchQuote('^VIX', 'CBOE Volatility Index', 16.4)
@@ -475,6 +480,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const data = await buildDashboardData(targeting);
+      const data = await buildDashboardData();
       sendJson(res, 200, data);
     } catch (error) {
       sendJson(res, 500, { message: 'Failed to build dashboard', error: error.message });

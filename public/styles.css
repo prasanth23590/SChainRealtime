@@ -83,6 +83,9 @@ body {
 .realtime-status {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+.realtime-status {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin: 18px 0 12px;
 }

@@ -5,10 +5,6 @@ const marketsEl = document.getElementById('markets');
 const newsListEl = document.getElementById('newsList');
 const updatedBadgeEl = document.getElementById('updatedBadge');
 const template = document.getElementById('marketCardTemplate');
-const regionSelectEl = document.getElementById('regionSelect');
-const countrySelectEl = document.getElementById('countrySelect');
-const applyTargetingEl = document.getElementById('applyTargeting');
-const targetingNoteEl = document.getElementById('targetingNote');
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
 function percentClass(value) {
@@ -238,6 +234,10 @@ async function loadDashboard() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || data.message || 'failed');
     renderTargeting(data);
+    const response = await fetch('/api/dashboard');
+    if (!response.ok) throw new Error('failed');
+
+    const data = await response.json();
     renderRealtimeStatus(data);
     renderPredictor(data);
     renderSummary(data);
@@ -255,6 +255,8 @@ async function loadDashboard() {
   } catch (error) {
     updatedBadgeEl.textContent = 'Data error';
     targetingNoteEl.textContent = error.message || 'Unable to load targeting context.';
+  } catch {
+    updatedBadgeEl.textContent = 'Data error';
     realtimeStatusEl.innerHTML = '<p class="error-text">Unable to load source coverage.</p>';
     predictorPanelEl.innerHTML = '<p class="error-text">Unable to load predictor context.</p>';
     newsListEl.innerHTML = '<p class="error-text">Unable to load live data sources right now.</p>';
