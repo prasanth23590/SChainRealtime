@@ -1,0 +1,10 @@
+{
+  "name": "schain-realtime",
+  "version": "1.0.0",
+  "description": "Realtime supply-chain risk dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}
